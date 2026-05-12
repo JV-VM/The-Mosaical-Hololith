@@ -1,16 +1,8 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import express from 'express';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantMemberGuard } from '../tenants/guards/tenant-member.guard';
+import { CurrentTenant } from '../tenants/decorators/current-tenant.decorator';
 import { AnalyticsService } from './analytics.service';
 import { TrackViewDto } from './dto/track-view.dto';
 import { TrackBatchDto } from './dto/track-batch.dto';
@@ -49,24 +41,24 @@ export class AnalyticsController {
   // Dashboard: overview totals
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Get('dashboard/analytics/overview')
-  overview(@Req() req: express.Request) {
-    const tenantId = req.tenantId!;
+  overview(@CurrentTenant() tenantId: string) {
     return this.analytics.assertDashboardOverview(tenantId);
   }
 
   // Dashboard: last 7 days series
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Get('dashboard/analytics/last7days')
-  last7days(@Req() req: express.Request) {
-    const tenantId = req.tenantId!;
+  last7days(@CurrentTenant() tenantId: string) {
     return this.analytics.last7Days(tenantId);
   }
 
   // Dashboard: store stats
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Get('dashboard/analytics/store')
-  storeStats(@Req() req: express.Request, @Query('storeId') storeId: string) {
-    const tenantId = req.tenantId!;
+  storeStats(
+    @CurrentTenant() tenantId: string,
+    @Query('storeId') storeId: string,
+  ) {
     return this.analytics.storeStats(tenantId, storeId);
   }
 }

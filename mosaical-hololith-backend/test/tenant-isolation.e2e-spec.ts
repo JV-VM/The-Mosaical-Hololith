@@ -159,7 +159,7 @@ describe('Tenant isolation (e2e)', () => {
   it('user A cannot access tenant B resources', async () => {
     type RegisterResponse = { accessToken?: string };
     type TenantResponse = { id?: string };
-    type ErrorResponse = { message?: string };
+    type ErrorResponse = { error?: { message?: string } };
 
     const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -237,7 +237,9 @@ describe('Tenant isolation (e2e)', () => {
     const forbiddenBodyUnknown: unknown = forbiddenRes.json();
     const forbiddenBody = forbiddenBodyUnknown as ErrorResponse;
     const forbiddenMessage =
-      typeof forbiddenBody.message === 'string' ? forbiddenBody.message : '';
+      typeof forbiddenBody.error?.message === 'string'
+        ? forbiddenBody.error.message
+        : '';
     expect(forbiddenMessage).toContain('Not a member of this tenant');
 
     const ownTenantRes = await app.inject({

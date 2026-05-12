@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 import { CatalogController } from './catalog.controller';
+import { MediaModule } from '../media/media.module';
 import { PlansModule } from '../plans/plans.module';
 
 @Module({
-  imports: [PlansModule],
+  imports: [PlansModule, MediaModule],
   providers: [CatalogService],
   controllers: [CatalogController],
   exports: [CatalogService],

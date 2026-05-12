@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ProductStatus, StoreStatus } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
+import { MediaService } from '../media/media.service';
 import { PlansService } from '../plans/plans.service';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { CatalogService } from './catalog.service';
@@ -21,6 +22,7 @@ function createPrismaMock() {
       update: jest.fn(),
       count: jest.fn(),
     },
+    $transaction: jest.fn(),
   };
 }
 
@@ -30,20 +32,38 @@ function createPlansMock() {
   };
 }
 
+function createMediaMock() {
+  return {
+    getReadyOwnedAssetsForStoreOrThrow: jest.fn(),
+    buildProductMediaPayload: jest.fn(),
+    replaceProductMediaAssets: jest.fn(),
+  };
+}
+
 describe('CatalogService', () => {
   let service: CatalogService;
   let prismaMock: ReturnType<typeof createPrismaMock>;
   let plansMock: ReturnType<typeof createPlansMock>;
+  let mediaMock: ReturnType<typeof createMediaMock>;
 
   beforeEach(async () => {
     prismaMock = createPrismaMock();
     plansMock = createPlansMock();
+    mediaMock = createMediaMock();
+    prismaMock.$transaction.mockImplementation(
+      async (
+        callback: (
+          client: ReturnType<typeof createPrismaMock>,
+        ) => Promise<unknown>,
+      ) => callback(prismaMock),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CatalogService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: PlansService, useValue: plansMock },
+        { provide: MediaService, useValue: mediaMock },
       ],
     }).compile();
 
@@ -51,8 +71,13 @@ describe('CatalogService', () => {
     prismaMock.product.findUnique.mockReset();
     prismaMock.product.create.mockReset();
     prismaMock.product.update.mockReset();
+    prismaMock.product.findMany.mockReset();
+    prismaMock.product.count.mockReset();
     prismaMock.store.findUnique.mockReset();
     plansMock.assertCanCreateProduct.mockReset();
+    mediaMock.getReadyOwnedAssetsForStoreOrThrow.mockReset();
+    mediaMock.buildProductMediaPayload.mockReset();
+    mediaMock.replaceProductMediaAssets.mockReset();
   });
 
   describe('createProduct', () => {
@@ -109,6 +134,9 @@ describe('CatalogService', () => {
       expect(createArgs.select).toBeDefined();
       expect(typeof createArgs.select).toBe('object');
       expect(result).toBe(createdProduct);
+      expect(
+        mediaMock.getReadyOwnedAssetsForStoreOrThrow,
+      ).not.toHaveBeenCalled();
     });
 
     it('throws BadRequestException when the slug already exists in the store', async () => {
@@ -164,6 +192,48 @@ describe('CatalogService', () => {
       expect(args.data).toMatchObject({ description: null });
     });
 
+    it('replaces attached media assets when mediaAssetIds are provided', async () => {
+      prismaMock.product.findUnique.mockResolvedValueOnce({
+        id: 'product-1',
+        storeId: 'store-1',
+        status: ProductStatus.DRAFT,
+        slug: 'product-a',
+        store: { tenantId: 'tenant-1' },
+      });
+      mediaMock.getReadyOwnedAssetsForStoreOrThrow.mockResolvedValue([
+        {
+          id: 'asset-1',
+          originalFilename: 'hero.png',
+          mimeType: 'image/png',
+          sizeBytes: 10,
+        },
+      ]);
+      mediaMock.buildProductMediaPayload.mockReturnValue({
+        assets: [
+          { id: 'asset-1', url: '/api/v1/media/assets/asset-1/content' },
+        ],
+      });
+      prismaMock.product.update.mockResolvedValue({
+        id: 'product-1',
+        description: null,
+      });
+
+      await service.updateProduct({
+        tenantId: 'tenant-1',
+        productId: 'product-1',
+        patch: { mediaAssetIds: ['asset-1'] },
+      });
+
+      expect(mediaMock.getReadyOwnedAssetsForStoreOrThrow).toHaveBeenCalledWith(
+        {
+          tenantId: 'tenant-1',
+          storeId: 'store-1',
+          mediaAssetIds: ['asset-1'],
+        },
+      );
+      expect(mediaMock.replaceProductMediaAssets).toHaveBeenCalled();
+    });
+
     it('throws ForbiddenException when the product belongs to another tenant', async () => {
       prismaMock.product.findUnique.mockResolvedValueOnce({
         id: 'product-1',
@@ -195,6 +265,46 @@ describe('CatalogService', () => {
       await expect(
         service.publicListProductsByStoreSlug('store-a'),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('listProducts', () => {
+    it('returns a paginated product list scoped to the tenant', async () => {
+      prismaMock.product.findMany.mockResolvedValue([]);
+      prismaMock.product.count.mockResolvedValue(0);
+
+      const result = await service.listProducts({
+        tenantId: 'tenant-1',
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith({
+        where: {
+          store: { tenantId: 'tenant-1' },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: expect.any(Object),
+        take: 20,
+        skip: 0,
+      });
+      expect(prismaMock.product.count).toHaveBeenCalledWith({
+        where: {
+          store: { tenantId: 'tenant-1' },
+        },
+      });
+      expect(result).toEqual({
+        data: [],
+        meta: {
+          pagination: {
+            limit: 20,
+            offset: 0,
+            count: 0,
+            total: 0,
+            hasMore: false,
+          },
+        },
+      });
     });
   });
 });

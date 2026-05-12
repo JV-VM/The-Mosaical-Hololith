@@ -5,7 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, ProductStatus, StoreStatus } from '@prisma/client';
+import { MediaService } from '../media/media.service';
 import { PlansService } from '../plans/plans.service';
+import { buildListResponse } from '../shared/http/api-response';
 import { PrismaService } from '../shared/prisma/prisma.service';
 
 type CreateProductParams = {
@@ -17,6 +19,7 @@ type CreateProductParams = {
   priceCents: number;
   currency?: string;
   media?: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+  mediaAssetIds?: string[];
 };
 
 type UpdateProductParams = {
@@ -29,6 +32,7 @@ type UpdateProductParams = {
     priceCents?: number;
     currency?: string;
     media?: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+    mediaAssetIds?: string[];
   };
 };
 
@@ -37,6 +41,7 @@ export class CatalogService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly plans: PlansService,
+    private readonly media: MediaService,
   ) {}
 
   // ---- reusable selects ----
@@ -178,34 +183,76 @@ export class CatalogService {
   async createProduct(params: CreateProductParams) {
     await this.plans.assertCanCreateProduct(params.tenantId, params.storeId);
     await this.assertProductSlugUniqueInStore(params.storeId, params.slug);
+    const resolvedAssets = params.mediaAssetIds
+      ? await this.media.getReadyOwnedAssetsForStoreOrThrow({
+          tenantId: params.tenantId,
+          storeId: params.storeId,
+          mediaAssetIds: params.mediaAssetIds,
+        })
+      : [];
+    const resolvedMedia =
+      params.mediaAssetIds !== undefined
+        ? this.media.buildProductMediaPayload(resolvedAssets)
+        : params.media;
 
-    return this.prisma.product.create({
-      data: {
-        storeId: params.storeId,
-        title: params.title,
-        slug: params.slug,
-        description: params.description ?? null,
-        priceCents: params.priceCents,
-        currency: params.currency ?? 'USD',
-        media: params.media,
-        status: ProductStatus.DRAFT,
-      },
-      select: CatalogService.productDashboardSelect,
+    return this.prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          storeId: params.storeId,
+          title: params.title,
+          slug: params.slug,
+          description: params.description ?? null,
+          priceCents: params.priceCents,
+          currency: params.currency ?? 'USD',
+          media: resolvedMedia,
+          status: ProductStatus.DRAFT,
+        },
+        select: CatalogService.productDashboardSelect,
+      });
+
+      if (params.mediaAssetIds !== undefined) {
+        await this.media.replaceProductMediaAssets({
+          productId: created.id,
+          assets: resolvedAssets,
+          client: tx,
+        });
+      }
+
+      return created;
     });
   }
 
-  async listProducts(params: { tenantId: string; storeId?: string }) {
+  async listProducts(params: {
+    tenantId: string;
+    storeId?: string;
+    limit: number;
+    offset: number;
+  }) {
     if (params.storeId) {
       await this.assertStoreBelongsToTenant(params.storeId, params.tenantId);
     }
 
-    return this.prisma.product.findMany({
-      where: {
-        ...(params.storeId ? { storeId: params.storeId } : {}),
-        store: { tenantId: params.tenantId },
-      },
-      orderBy: { createdAt: 'desc' },
-      select: CatalogService.productListSelect,
+    const where = {
+      ...(params.storeId ? { storeId: params.storeId } : {}),
+      store: { tenantId: params.tenantId },
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        select: CatalogService.productListSelect,
+        take: params.limit,
+        skip: params.offset,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    return buildListResponse({
+      items,
+      limit: params.limit,
+      offset: params.offset,
+      total,
     });
   }
 
@@ -222,13 +269,41 @@ export class CatalogService {
       );
     }
 
-    return this.prisma.product.update({
-      where: { id: params.productId },
-      data: {
-        ...params.patch,
-        description: this.toNullableStringPatch(params.patch.description),
-      },
-      select: CatalogService.productDashboardSelect,
+    const resolvedAssets = params.patch.mediaAssetIds
+      ? await this.media.getReadyOwnedAssetsForStoreOrThrow({
+          tenantId: params.tenantId,
+          storeId: product.storeId,
+          mediaAssetIds: params.patch.mediaAssetIds,
+        })
+      : [];
+    const resolvedMedia =
+      params.patch.mediaAssetIds !== undefined
+        ? this.media.buildProductMediaPayload(resolvedAssets)
+        : params.patch.media;
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.product.update({
+        where: { id: params.productId },
+        data: {
+          title: params.patch.title,
+          slug: params.patch.slug,
+          description: this.toNullableStringPatch(params.patch.description),
+          priceCents: params.patch.priceCents,
+          currency: params.patch.currency,
+          media: resolvedMedia,
+        },
+        select: CatalogService.productDashboardSelect,
+      });
+
+      if (params.patch.mediaAssetIds !== undefined) {
+        await this.media.replaceProductMediaAssets({
+          productId: params.productId,
+          assets: resolvedAssets,
+          client: tx,
+        });
+      }
+
+      return updated;
     });
   }
 

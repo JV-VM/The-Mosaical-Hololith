@@ -16,6 +16,7 @@ import { MediaModule } from './media/media.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { HealthController } from './shared/health/health.controller';
 import { RequestLoggerMiddleware } from './shared/middleware/request-logger.middleware';
+import { TenantAdminGuard } from './tenants/guards/tenant-admin.guard';
 @Module({
   imports: [
     // still useful for Nest conventions; we validate with Zod in env.ts
@@ -35,6 +36,7 @@ import { RequestLoggerMiddleware } from './shared/middleware/request-logger.midd
     AnalyticsModule,
   ],
   controllers: [HealthController],
+  providers: [TenantAdminGuard],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

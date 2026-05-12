@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { OffsetPaginationQueryDto } from '../shared/dto/offset-pagination-query.dto';
 
 const normalizeQuery = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined;
@@ -7,7 +8,7 @@ const normalizeQuery = (value: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
-export class ExploreQueryDto {
+export class ExploreQueryDto extends OffsetPaginationQueryDto {
   @IsOptional()
   @IsString()
   @Transform(({ value }) => normalizeQuery(value))
@@ -31,11 +32,11 @@ export class ExploreQueryDto {
   @IsInt()
   @Min(1)
   @Max(50)
-  limit?: number;
+  declare limit: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  offset?: number;
+  declare offset: number;
 }

@@ -58,12 +58,20 @@ describe('GlobalHttpExceptionFilter', () => {
     );
     const body = getSentBody(response.send as jest.Mock);
     expect(body).toMatchObject({
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      path: '/boom',
-      message: 'Internal server error',
-      requestId: 'req-1',
+      success: false,
+      error: {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Internal server error',
+      },
+      meta: {
+        path: '/boom',
+        requestId: 'req-1',
+      },
     });
-    expect(body.message).not.toBe('sensitive details');
+    expect((body.error as { message: string }).message).not.toBe(
+      'sensitive details',
+    );
   });
 
   it('preserves HttpException responses and adds requestId', () => {
@@ -84,10 +92,16 @@ describe('GlobalHttpExceptionFilter', () => {
     expect(response.code).toHaveBeenCalledWith(400);
     const body = getSentBody(response.send as jest.Mock);
     expect(body).toMatchObject({
-      statusCode: 400,
-      path: '/bad',
-      message: 'bad input',
-      requestId: 'req-2',
+      success: false,
+      error: {
+        statusCode: 400,
+        code: 'BAD_REQUEST',
+        message: 'bad input',
+      },
+      meta: {
+        path: '/bad',
+        requestId: 'req-2',
+      },
     });
   });
 });

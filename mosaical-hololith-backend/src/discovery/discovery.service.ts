@@ -152,6 +152,9 @@ const fetchStores = (
     select: storeSelect,
   });
 
+const countStores = (prisma: PrismaService, where: Prisma.StoreWhereInput) =>
+  prisma.store.count({ where });
+
 const fetchProducts = (
   prisma: PrismaService,
   where: Prisma.ProductWhereInput,
@@ -167,6 +170,28 @@ const fetchProducts = (
     select: productSelect,
   });
 
+const countProducts = (
+  prisma: PrismaService,
+  where: Prisma.ProductWhereInput,
+) => prisma.product.count({ where });
+
+type ResourcePaginationMeta = {
+  limit: number;
+  offset: number;
+  count: {
+    stores?: number;
+    products?: number;
+  };
+  total: {
+    stores?: number;
+    products?: number;
+  };
+  hasMore: {
+    stores?: boolean;
+    products?: boolean;
+  };
+};
+
 @Injectable()
 export class DiscoveryService {
   constructor(private readonly prisma: PrismaService) {}
@@ -178,7 +203,16 @@ export class DiscoveryService {
     sort?: ExploreSort;
     limit: number;
     offset: number;
-  }): Promise<{ query: typeof params; results: ExploreResults }> {
+  }): Promise<{
+    data: ExploreResults;
+    meta: {
+      query: Omit<typeof params, 'limit' | 'offset'> & {
+        limit: number;
+        offset: number;
+      };
+      pagination: ResourcePaginationMeta;
+    };
+  }> {
     const { q, tags = [], type = 'all', sort = 'new', limit, offset } = params;
     const tagFilter = buildTagFilter(tags);
     const storeWhere = buildStoreWhere(q, tagFilter);
@@ -186,39 +220,61 @@ export class DiscoveryService {
     const orderByStore = buildOrderByStore(sort);
     const orderByProduct = buildOrderByProduct(sort);
     const results: ExploreResults = {};
+    const counts: ResourcePaginationMeta['count'] = {};
+    const totals: ResourcePaginationMeta['total'] = {};
+    const hasMore: ResourcePaginationMeta['hasMore'] = {};
 
     if (type === 'all') {
-      const [stores, products] = await Promise.all([
+      const [stores, products, totalStores, totalProducts] = await Promise.all([
         fetchStores(this.prisma, storeWhere, orderByStore, limit, offset),
         fetchProducts(this.prisma, productWhere, orderByProduct, limit, offset),
+        countStores(this.prisma, storeWhere),
+        countProducts(this.prisma, productWhere),
       ]);
       results.stores = stores;
       results.products = products;
+      counts.stores = stores.length;
+      counts.products = products.length;
+      totals.stores = totalStores;
+      totals.products = totalProducts;
+      hasMore.stores = offset + stores.length < totalStores;
+      hasMore.products = offset + products.length < totalProducts;
     }
 
     if (type === 'store') {
-      results.stores = await fetchStores(
-        this.prisma,
-        storeWhere,
-        orderByStore,
-        limit,
-        offset,
-      );
+      const [stores, totalStores] = await Promise.all([
+        fetchStores(this.prisma, storeWhere, orderByStore, limit, offset),
+        countStores(this.prisma, storeWhere),
+      ]);
+      results.stores = stores;
+      counts.stores = stores.length;
+      totals.stores = totalStores;
+      hasMore.stores = offset + stores.length < totalStores;
     }
 
     if (type === 'product') {
-      results.products = await fetchProducts(
-        this.prisma,
-        productWhere,
-        orderByProduct,
-        limit,
-        offset,
-      );
+      const [products, totalProducts] = await Promise.all([
+        fetchProducts(this.prisma, productWhere, orderByProduct, limit, offset),
+        countProducts(this.prisma, productWhere),
+      ]);
+      results.products = products;
+      counts.products = products.length;
+      totals.products = totalProducts;
+      hasMore.products = offset + products.length < totalProducts;
     }
 
     return {
-      query: { q, tags, type, sort, limit, offset },
-      results,
+      data: results,
+      meta: {
+        query: { q, tags, type, sort, limit, offset },
+        pagination: {
+          limit,
+          offset,
+          count: counts,
+          total: totals,
+          hasMore,
+        },
+      },
     };
   }
 }

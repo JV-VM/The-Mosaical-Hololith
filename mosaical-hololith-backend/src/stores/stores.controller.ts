@@ -5,12 +5,13 @@ import {
   Param,
   Patch,
   Post,
-  Req,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import express from 'express';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OffsetPaginationQueryDto } from '../shared/dto/offset-pagination-query.dto';
+import { CurrentTenant } from '../tenants/decorators/current-tenant.decorator';
 import { TenantMemberGuard } from '../tenants/guards/tenant-member.guard';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
@@ -23,8 +24,7 @@ export class StoresController {
   // Dashboard (tenant scoped)
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Post('stores')
-  create(@Req() req: express.Request, @Body() dto: CreateStoreDto) {
-    const tenantId = req.tenantId!;
+  create(@CurrentTenant() tenantId: string, @Body() dto: CreateStoreDto) {
     return this.stores.createStore({
       tenantId,
       name: dto.name,
@@ -36,19 +36,24 @@ export class StoresController {
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Get('stores')
-  listMine(@Req() req: express.Request) {
-    const tenantId = req.tenantId!;
-    return this.stores.listStoresByTenant(tenantId);
+  listMine(
+    @CurrentTenant() tenantId: string,
+    @Query() query: OffsetPaginationQueryDto,
+  ) {
+    return this.stores.listStoresByTenant({
+      tenantId,
+      limit: query.limit,
+      offset: query.offset,
+    });
   }
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Patch('stores/:id')
   update(
-    @Req() req: express.Request,
+    @CurrentTenant() tenantId: string,
     @Param('id') id: string,
     @Body() dto: UpdateStoreDto,
   ) {
-    const tenantId = req.tenantId!;
     return this.stores.updateStore({
       tenantId,
       storeId: id,
@@ -63,15 +68,13 @@ export class StoresController {
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Post('stores/:id/publish')
-  publish(@Req() req: express.Request, @Param('id') id: string) {
-    const tenantId = req.tenantId!;
+  publish(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.stores.publishStore(tenantId, id);
   }
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Post('stores/:id/unpublish')
-  unpublish(@Req() req: express.Request, @Param('id') id: string) {
-    const tenantId = req.tenantId!;
+  unpublish(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.stores.unpublishStore(tenantId, id);
   }
 

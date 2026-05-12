@@ -1,18 +1,17 @@
 import {
+  BadRequestException,
   Body,
   Controller,
-  ForbiddenException,
   Get,
   Param,
   Patch,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentTenant } from '../tenants/decorators/current-tenant.decorator';
 import { TenantMemberGuard } from '../tenants/guards/tenant-member.guard';
 import { CatalogService } from './catalog.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -23,22 +22,19 @@ import { ListProductsDto } from './dto/list-products.dto';
 export class CatalogController {
   constructor(private readonly catalog: CatalogService) {}
 
-  private getTenantIdOrThrow(req: RequestWithTenantId): string {
-    if (!req.tenantId) {
-      throw new ForbiddenException('Missing tenant context');
-    }
-
-    return req.tenantId;
-  }
-
   // -----------------------
   // Dashboard (tenant scoped)
   // -----------------------
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Post('products')
-  create(@Req() req: RequestWithTenantId, @Body() dto: CreateProductDto) {
-    const tenantId = this.getTenantIdOrThrow(req);
+  create(@CurrentTenant() tenantId: string, @Body() dto: CreateProductDto) {
+    if (dto.media !== undefined && dto.mediaAssetIds !== undefined) {
+      throw new BadRequestException(
+        'Provide either media or mediaAssetIds, not both',
+      );
+    }
+
     const media = toJsonInputOrThrow(dto.media);
     return this.catalog.createProduct({
       tenantId,
@@ -49,27 +45,34 @@ export class CatalogController {
       priceCents: dto.priceCents,
       currency: dto.currency,
       media,
+      mediaAssetIds: dto.mediaAssetIds,
     });
   }
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Get('products')
-  list(
-    @Req() req: RequestWithTenantId,
-    @Query('storeId') dto: ListProductsDto,
-  ) {
-    const tenantId = this.getTenantIdOrThrow(req);
-    return this.catalog.listProducts({ tenantId, storeId: dto.storeId });
+  list(@CurrentTenant() tenantId: string, @Query() dto: ListProductsDto) {
+    return this.catalog.listProducts({
+      tenantId,
+      storeId: dto.storeId,
+      limit: dto.limit,
+      offset: dto.offset,
+    });
   }
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Patch('products/:id')
   update(
-    @Req() req: RequestWithTenantId,
+    @CurrentTenant() tenantId: string,
     @Param('id') id: string,
     @Body() dto: UpdateProductDto,
   ) {
-    const tenantId = this.getTenantIdOrThrow(req);
+    if (dto.media !== undefined && dto.mediaAssetIds !== undefined) {
+      throw new BadRequestException(
+        'Provide either media or mediaAssetIds, not both',
+      );
+    }
+
     const media = toJsonInputOrThrow(dto.media);
     return this.catalog.updateProduct({
       tenantId,
@@ -81,21 +84,20 @@ export class CatalogController {
         priceCents: dto.priceCents,
         currency: dto.currency,
         media,
+        mediaAssetIds: dto.mediaAssetIds,
       },
     });
   }
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Post('products/:id/publish')
-  publish(@Req() req: RequestWithTenantId, @Param('id') id: string) {
-    const tenantId = this.getTenantIdOrThrow(req);
+  publish(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.catalog.publishProduct(tenantId, id);
   }
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Post('products/:id/unpublish')
-  unpublish(@Req() req: RequestWithTenantId, @Param('id') id: string) {
-    const tenantId = this.getTenantIdOrThrow(req);
+  unpublish(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.catalog.unpublishProduct(tenantId, id);
   }
 
@@ -116,5 +118,3 @@ export class CatalogController {
     return this.catalog.publicGetProductByStoreSlug(storeSlug, productSlug);
   }
 }
-
-type RequestWithTenantId = Request & { tenantId?: string };

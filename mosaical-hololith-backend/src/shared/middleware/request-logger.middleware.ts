@@ -20,11 +20,14 @@ type RequestWithContext = {
 };
 
 type ReplyWithRaw = {
-  header: (name: string, value: string) => void;
+  header?: (name: string, value: string) => void;
   statusCode?: number;
   raw: {
     on: (event: 'finish', handler: () => void) => void;
+    setHeader?: (name: string, value: string) => void;
   };
+  sent?: boolean;
+  headersSent?: boolean;
 };
 
 const getHeaderString = (value: unknown): string | undefined => {
@@ -49,28 +52,39 @@ export class RequestLoggerMiddleware implements NestMiddleware {
     const requestId = req.id ?? headerRequestIdValue ?? randomUUID();
     req.id = requestId;
 
-    res.header('x-request-id', requestId);
+    try {
+      if (typeof res.header === 'function') {
+        res.header('x-request-id', requestId);
+      } else if (typeof res.raw?.setHeader === 'function') {
+        res.raw.setHeader('x-request-id', requestId);
+      }
+    } catch {
+      // Never throw from middleware header setting.
+    }
 
-    res.raw.on('finish', () => {
-      const ms = Date.now() - start;
-      const userAgent = getHeaderString(req.headers['user-agent']);
-      const tenantId = getHeaderString(req.headers['x-tenant-id']);
-      const path = req.routeOptions?.url ?? req.url;
+    const onFinish = res.raw?.on;
+    if (typeof onFinish === 'function') {
+      onFinish.call(res.raw, 'finish', () => {
+        const ms = Date.now() - start;
+        const userAgent = getHeaderString(req.headers['user-agent']);
+        const tenantId = getHeaderString(req.headers['x-tenant-id']);
+        const path = req.routeOptions?.url ?? req.url;
 
-      logger.info(
-        {
-          requestId,
-          method: req.method,
-          path,
-          statusCode: res.statusCode,
-          durationMs: ms,
-          ip: req.ip,
-          userAgent,
-          tenantId,
-        },
-        'http_request',
-      );
-    });
+        logger.info(
+          {
+            requestId,
+            method: req.method,
+            path,
+            statusCode: res.statusCode,
+            durationMs: ms,
+            ip: req.ip,
+            userAgent,
+            tenantId,
+          },
+          'http_request',
+        );
+      });
+    }
 
     next();
   }

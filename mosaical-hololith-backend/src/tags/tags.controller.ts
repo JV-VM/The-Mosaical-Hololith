@@ -2,19 +2,21 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Logger,
   Param,
   Post,
-  Req,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import express from 'express';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OffsetPaginationQueryDto } from '../shared/dto/offset-pagination-query.dto';
+import { CurrentMembership } from '../tenants/decorators/current-membership.decorator';
+import { CurrentTenant } from '../tenants/decorators/current-tenant.decorator';
+import type { TenantMembership } from '../tenants/tenant-request';
+import { TenantAdminGuard } from '../tenants/guards/tenant-admin.guard';
 import { TenantMemberGuard } from '../tenants/guards/tenant-member.guard';
-import { env } from '../shared/env';
 import { TagsService } from './tags.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { AssignTagDto } from './dto/assign-tag.dto';
@@ -25,19 +27,16 @@ export class TagsController {
 
   constructor(private readonly tags: TagsService) {}
 
-  private assertAdminOrThrow(req: express.Request) {
-    if (!req.membership || req.membership.role !== 'TENANT_ADMIN') {
-      throw new ForbiddenException('Admin access required');
-    }
-  }
-
   // -----------------------
   // Public
   // -----------------------
 
   @Get('tags')
-  listPublic() {
-    return this.tags.publicListTags();
+  listPublic(@Query() query: OffsetPaginationQueryDto) {
+    return this.tags.publicListTags({
+      limit: query.limit,
+      offset: query.offset,
+    });
   }
 
   @Get('tags/:slug')
@@ -48,16 +47,15 @@ export class TagsController {
   // -----------------------
   // MVP Admin/Seed (lock later)
   // -----------------------
-  @UseGuards(JwtAuthGuard, TenantMemberGuard)
+  @UseGuards(JwtAuthGuard, TenantMemberGuard, TenantAdminGuard)
   @Post('admin/tags')
-  create(@Req() req: express.Request, @Body() dto: CreateTagDto) {
-    if (env.NODE_ENV === 'production') {
-      throw new ForbiddenException('Not available in production');
-    }
-
-    this.assertAdminOrThrow(req);
+  create(
+    @CurrentTenant() tenantId: string,
+    @CurrentMembership() membership: TenantMembership,
+    @Body() dto: CreateTagDto,
+  ) {
     this.logger.log(
-      `admin tag seed tenantId=${req.tenantId} membershipId=${req.membership?.id}`,
+      `admin tag create tenantId=${tenantId} membershipId=${membership.id}`,
     );
 
     return this.tags.createTag({
@@ -75,33 +73,30 @@ export class TagsController {
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Post('stores/:storeId/tags')
   assignStoreTag(
-    @Req() req: express.Request,
+    @CurrentTenant() tenantId: string,
     @Param('storeId') storeId: string,
     @Body() dto: AssignTagDto,
   ) {
-    const tenantId = req.tenantId!;
     return this.tags.assignTagToStore({ tenantId, storeId, tagId: dto.tagId });
   }
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Delete('stores/:storeId/tags/:tagId')
   unassignStoreTag(
-    @Req() req: express.Request,
+    @CurrentTenant() tenantId: string,
     @Param('storeId') storeId: string,
     @Param('tagId') tagId: string,
   ) {
-    const tenantId = req.tenantId!;
     return this.tags.unassignTagFromStore({ tenantId, storeId, tagId });
   }
 
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Post('products/:productId/tags')
   assignProductTag(
-    @Req() req: express.Request,
+    @CurrentTenant() tenantId: string,
     @Param('productId') productId: string,
     @Body() dto: AssignTagDto,
   ) {
-    const tenantId = req.tenantId!;
     return this.tags.assignTagToProduct({
       tenantId,
       productId,
@@ -112,11 +107,10 @@ export class TagsController {
   @UseGuards(JwtAuthGuard, TenantMemberGuard)
   @Delete('products/:productId/tags/:tagId')
   unassignProductTag(
-    @Req() req: express.Request,
+    @CurrentTenant() tenantId: string,
     @Param('productId') productId: string,
     @Param('tagId') tagId: string,
   ) {
-    const tenantId = req.tenantId!;
     return this.tags.unassignTagFromProduct({ tenantId, productId, tagId });
   }
 }

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PageStatus, Prisma, StoreStatus } from '@prisma/client';
+import { buildListResponse } from '../shared/http/api-response';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { assertValidContent } from './page-content';
 
@@ -144,17 +145,36 @@ export class PagesService {
     });
   }
 
-  async listPages(params: { tenantId: string; storeId?: string }) {
+  async listPages(params: {
+    tenantId: string;
+    storeId?: string;
+    limit: number;
+    offset: number;
+  }) {
     if (params.storeId)
       await this.assertStoreBelongsToTenant(params.storeId, params.tenantId);
 
-    return this.prisma.page.findMany({
-      where: {
-        ...(params.storeId ? { storeId: params.storeId } : {}),
-        store: { tenantId: params.tenantId },
-      },
-      orderBy: { createdAt: 'desc' },
-      select: pageSelect,
+    const where = {
+      ...(params.storeId ? { storeId: params.storeId } : {}),
+      store: { tenantId: params.tenantId },
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.page.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        select: pageSelect,
+        take: params.limit,
+        skip: params.offset,
+      }),
+      this.prisma.page.count({ where }),
+    ]);
+
+    return buildListResponse({
+      items,
+      limit: params.limit,
+      offset: params.offset,
+      total,
     });
   }
 

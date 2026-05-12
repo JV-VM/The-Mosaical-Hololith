@@ -25,16 +25,14 @@ export class DiscoveryController {
     const tags = parseTags(query.tags);
     const type = query.type ?? 'all';
     const sort = query.sort ?? 'new';
-    const limit = query.limit ?? 20;
-    const offset = query.offset ?? 0;
 
     return this.discovery.explore({
       q,
       tags,
       type,
       sort,
-      limit,
-      offset,
+      limit: query.limit,
+      offset: query.offset,
     });
   }
 }

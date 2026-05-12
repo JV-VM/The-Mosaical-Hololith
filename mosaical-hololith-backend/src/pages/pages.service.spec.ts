@@ -16,6 +16,7 @@ function createPrismaMock() {
       create: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
     },
   };
 }
@@ -42,6 +43,8 @@ describe('PagesService', () => {
     prismaMock.page.findUnique.mockReset();
     prismaMock.page.create.mockReset();
     prismaMock.page.update.mockReset();
+    prismaMock.page.findMany.mockReset();
+    prismaMock.page.count.mockReset();
   });
 
   describe('createPage', () => {
@@ -135,6 +138,46 @@ describe('PagesService', () => {
           patch: { title: 'New' },
         }),
       ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  describe('listPages', () => {
+    it('returns a paginated page list scoped to the tenant', async () => {
+      prismaMock.page.findMany.mockResolvedValue([]);
+      prismaMock.page.count.mockResolvedValue(0);
+
+      const result = await service.listPages({
+        tenantId: 'tenant-1',
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(prismaMock.page.findMany).toHaveBeenCalledWith({
+        where: {
+          store: { tenantId: 'tenant-1' },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: expect.any(Object),
+        take: 20,
+        skip: 0,
+      });
+      expect(prismaMock.page.count).toHaveBeenCalledWith({
+        where: {
+          store: { tenantId: 'tenant-1' },
+        },
+      });
+      expect(result).toEqual({
+        data: [],
+        meta: {
+          pagination: {
+            limit: 20,
+            offset: 0,
+            count: 0,
+            total: 0,
+            hasMore: false,
+          },
+        },
+      });
     });
   });
 });

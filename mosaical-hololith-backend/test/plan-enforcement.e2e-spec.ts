@@ -16,6 +16,7 @@ import { randomUUID } from 'crypto';
 import { AppModule } from '../src/app.module';
 import { env } from '../src/shared/env';
 import { GlobalHttpExceptionFilter } from '../src/shared/filters/global-http-exception.filter';
+import { getE2EDatabaseUrl } from './e2e-db';
 
 const API_PREFIX = 'api/v1';
 const REQUEST_ID_HEADER = 'x-request-id';
@@ -73,10 +74,7 @@ const RATE_LIMIT_AUTH_REFRESH: RateLimitOptions = {
   timeWindow: '1 minute',
 };
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error('DATABASE_URL is missing for e2e tests');
-}
+const connectionString = getE2EDatabaseUrl();
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString }),
@@ -171,7 +169,7 @@ describe('Plan enforcement', () => {
   it('Free plan: cannot create 2nd store', async () => {
     type RegisterResponse = { accessToken?: string };
     type TenantResponse = { id?: string };
-    type ErrorResponse = { message?: string };
+    type ErrorResponse = { error?: { message?: string } };
 
     const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -256,7 +254,9 @@ describe('Plan enforcement', () => {
     const store2BodyUnknown: unknown = store2Res.json();
     const store2Body = store2BodyUnknown as ErrorResponse;
     const store2Message =
-      typeof store2Body.message === 'string' ? store2Body.message : '';
+      typeof store2Body.error?.message === 'string'
+        ? store2Body.error.message
+        : '';
     expect(store2Message).toContain('maxStores');
   });
 
@@ -264,7 +264,7 @@ describe('Plan enforcement', () => {
     type RegisterResponse = { accessToken?: string };
     type TenantResponse = { id?: string };
     type StoreResponse = { id?: string };
-    type ErrorResponse = { message?: string };
+    type ErrorResponse = { error?: { message?: string } };
 
     const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -372,8 +372,8 @@ describe('Plan enforcement', () => {
     const thirdProductBodyUnknown: unknown = thirdProductRes.json();
     const thirdProductBody = thirdProductBodyUnknown as ErrorResponse;
     const thirdProductMessage =
-      typeof thirdProductBody.message === 'string'
-        ? thirdProductBody.message
+      typeof thirdProductBody.error?.message === 'string'
+        ? thirdProductBody.error.message
         : '';
     expect(thirdProductMessage).toContain('maxProductsPerStore');
   });

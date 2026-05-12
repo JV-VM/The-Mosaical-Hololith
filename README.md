@@ -20,6 +20,7 @@ The target state is a hybrid decoupled monorepo with:
 - [Full-Stack Delivery Roadmap](/home/vihkctormartim/The-Mosaical-Hololtih/docs/roadmap/00.full-stack-delivery-roadmap.md)
 - [Phase 0: Repo Stabilization](/home/vihkctormartim/The-Mosaical-Hololtih/docs/roadmap/01.phase-0-repo-stabilization.md)
 - [Phase 1: Target Architecture and Render Topology](/home/vihkctormartim/The-Mosaical-Hololtih/docs/roadmap/02.phase-1-target-architecture.md)
+- [Phase 2: Backend Completion Backlog](/home/vihkctormartim/The-Mosaical-Hololtih/docs/roadmap/03.phase-2-backend-completion.md)
 
 ## Phase 1 Architecture
 

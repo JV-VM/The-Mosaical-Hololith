@@ -28,6 +28,7 @@ model Tenant {
   owner     User         @relation(fields: [ownerId], references: [id])
 
   subscriptions Subscription[]
+  mediaAssets    MediaAsset[]
 }
 
 model Membership {
@@ -56,6 +57,7 @@ model Store {
   products     Product[]
   tenant       Tenant      @relation(fields: [tenantId], references: [id])
   storeTags    StoreTag[]
+  mediaAssets  MediaAsset[]
 
   analyticsEvents AnalyticsEvent[]
 }
@@ -90,9 +92,45 @@ model Product {
   updatedAt       DateTime         @updatedAt
   store           Store            @relation(fields: [storeId], references: [id])
   productTags     ProductTag[]
+  mediaAssets     ProductMediaAsset[]
   analyticsEvents AnalyticsEvent[]
 
   @@unique([storeId, slug])
+}
+
+model MediaAsset {
+  id               String           @id @default(cuid())
+  tenantId         String
+  storeId          String
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  status           MediaAssetStatus @default(READY)
+  storageDriver    String
+  objectKey        String           @unique
+  checksumSha256   String
+  createdByUserId  String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  store         Store              @relation(fields: [storeId], references: [id])
+  productAssets ProductMediaAsset[]
+
+  @@index([tenantId, storeId, createdAt])
+}
+
+model ProductMediaAsset {
+  productId    String
+  mediaAssetId String
+  position     Int
+  altText      String?
+
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+
+  @@id([productId, mediaAssetId])
+  @@unique([productId, position])
 }
 
 model Tag {
@@ -201,4 +239,9 @@ enum MemberRole {
 enum PageStatus {
   DRAFT
   PUBLISHED
+}
+
+enum MediaAssetStatus {
+  READY
+  DELETED
 }

@@ -16,6 +16,7 @@ import { randomUUID } from 'crypto';
 import { AppModule } from '../src/app.module';
 import { env } from '../src/shared/env';
 import { GlobalHttpExceptionFilter } from '../src/shared/filters/global-http-exception.filter';
+import { getE2EDatabaseUrl } from './e2e-db';
 import { debugResponse } from './setup-e2e';
 
 const API_PREFIX = 'api/v1';
@@ -76,10 +77,7 @@ const RATE_LIMIT_AUTH_REFRESH: RateLimitOptions = {
   timeWindow: '1 minute',
 };
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error('DATABASE_URL is missing for e2e tests');
-}
+const connectionString = getE2EDatabaseUrl();
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString }),

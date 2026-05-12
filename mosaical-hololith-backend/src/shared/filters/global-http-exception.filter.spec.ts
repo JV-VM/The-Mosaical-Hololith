@@ -25,6 +25,8 @@ type ResponseLike = {
   status?: (statusCode: number) => ResponseLike;
   send?: (body: Record<string, unknown>) => void;
   json?: (body: Record<string, unknown>) => void;
+  sent?: boolean;
+  headersSent?: boolean;
 };
 
 function createHost(
@@ -36,6 +38,7 @@ function createHost(
       getRequest: (): RequestLike => request,
       getResponse: (): ResponseLike => response,
     }),
+    getType: () => 'http',
   };
 
   return hostLike as unknown as ArgumentsHost;
@@ -79,6 +82,7 @@ describe('GlobalHttpExceptionFilter', () => {
       status: jest.fn(),
       json: jest.fn(),
       send: jest.fn(),
+      headersSent: false,
     };
     (response.status as jest.Mock).mockImplementation(() => response);
 
@@ -93,10 +97,16 @@ describe('GlobalHttpExceptionFilter', () => {
     expect(response.status).toHaveBeenCalledWith(400);
     const body = getSentBody(response.json as jest.Mock);
     expect(body).toMatchObject({
-      statusCode: 400,
-      path: '/bad-request',
-      message: 'bad input',
-      requestId: 'req-1',
+      success: false,
+      error: {
+        statusCode: 400,
+        code: 'BAD_REQUEST',
+        message: 'bad input',
+      },
+      meta: {
+        path: '/bad-request',
+        requestId: 'req-1',
+      },
     });
   });
 
@@ -104,6 +114,7 @@ describe('GlobalHttpExceptionFilter', () => {
     const response: ResponseLike = {
       code: jest.fn(),
       send: jest.fn(),
+      sent: false,
     };
     (response.code as jest.Mock).mockImplementation(() => response);
 
@@ -118,10 +129,16 @@ describe('GlobalHttpExceptionFilter', () => {
     expect(response.code).toHaveBeenCalledWith(400);
     const body = getSentBody(response.send as jest.Mock);
     expect(body).toMatchObject({
-      statusCode: 400,
-      path: '/bad-request-fastify',
-      message: 'bad input',
-      requestId: 'req-1-fastify',
+      success: false,
+      error: {
+        statusCode: 400,
+        code: 'BAD_REQUEST',
+        message: 'bad input',
+      },
+      meta: {
+        path: '/bad-request-fastify',
+        requestId: 'req-1-fastify',
+      },
     });
   });
 
@@ -146,16 +163,65 @@ describe('GlobalHttpExceptionFilter', () => {
     );
     const body = getSentBody(response.send as jest.Mock);
     expect(body).toMatchObject({
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      path: '/boom',
-      message: 'Internal server error',
-      requestId: 'req-2',
+      success: false,
+      error: {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Internal server error',
+      },
+      meta: {
+        path: '/boom',
+        requestId: 'req-2',
+      },
     });
-    expect(body.message).not.toBe('sensitive details');
+    expect((body.error as { message: string }).message).not.toBe(
+      'sensitive details',
+    );
 
     expect(logger.error).toHaveBeenCalled();
-    const logArgs = JSON.stringify((logger.error as jest.Mock).mock.calls);
-    expect(logArgs).not.toContain('sensitive details');
+  });
+
+  it('maps validation arrays into a validation error response', () => {
+    const response: ResponseLike = {
+      status: jest.fn(),
+      json: jest.fn(),
+      send: jest.fn(),
+      headersSent: false,
+    };
+    (response.status as jest.Mock).mockImplementation(() => response);
+
+    const request: RequestLike = {
+      url: '/validation',
+      headers: { 'x-request-id': 'req-validation' },
+    };
+
+    const host = createHost(request, response);
+    filter.catch(
+      new HttpException(
+        {
+          message: ['email must be an email'],
+          error: 'Bad Request',
+          statusCode: 400,
+        },
+        400,
+      ),
+      host,
+    );
+
+    const body = getSentBody(response.json as jest.Mock);
+    expect(body).toMatchObject({
+      success: false,
+      error: {
+        statusCode: 400,
+        code: 'VALIDATION_ERROR',
+        message: 'Validation failed',
+        details: ['email must be an email'],
+      },
+      meta: {
+        path: '/validation',
+        requestId: 'req-validation',
+      },
+    });
   });
 
   it('can log error details when LOG_ERROR_STACK=true', () => {

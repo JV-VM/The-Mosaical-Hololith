@@ -5,8 +5,8 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Request } from 'express';
 import { PrismaService } from '../../shared/prisma/prisma.service';
+import type { TenantRequest } from '../tenant-request';
 
 @Injectable()
 export class TenantMemberGuard implements CanActivate {
@@ -42,8 +42,3 @@ export class TenantMemberGuard implements CanActivate {
     return true;
   }
 }
-
-type TenantRequest = Request & {
-  tenantId?: string;
-  membership?: { id: string; role: string };
-};

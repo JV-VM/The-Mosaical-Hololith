@@ -16,6 +16,7 @@ function createPrismaMock() {
       create: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
     },
   };
 }
@@ -48,6 +49,7 @@ describe('StoresService', () => {
     prismaMock.store.create.mockReset();
     prismaMock.store.update.mockReset();
     prismaMock.store.findMany.mockReset();
+    prismaMock.store.count.mockReset();
     plansMock.assertCanCreateStore.mockReset();
   });
 
@@ -96,10 +98,15 @@ describe('StoresService', () => {
   });
 
   describe('listStoresByTenant', () => {
-    it('queries stores filtered by tenantId and ordered by createdAt desc', async () => {
+    it('returns a paginated store list filtered by tenantId', async () => {
       prismaMock.store.findMany.mockResolvedValue([]);
+      prismaMock.store.count.mockResolvedValue(0);
 
-      await service.listStoresByTenant('tenant-1');
+      const result = await service.listStoresByTenant({
+        tenantId: 'tenant-1',
+        limit: 20,
+        offset: 0,
+      });
 
       const firstCallUnknown: unknown = prismaMock.store.findMany.mock.calls[0];
       expect(Array.isArray(firstCallUnknown)).toBe(true);
@@ -116,10 +123,29 @@ describe('StoresService', () => {
         where?: unknown;
         orderBy?: unknown;
         select?: unknown;
+        take?: unknown;
+        skip?: unknown;
       };
       expect(args.where).toEqual({ tenantId: 'tenant-1' });
       expect(args.orderBy).toEqual({ createdAt: 'desc' });
       expect(args.select).toBeDefined();
+      expect(args.take).toBe(20);
+      expect(args.skip).toBe(0);
+      expect(prismaMock.store.count).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-1' },
+      });
+      expect(result).toEqual({
+        data: [],
+        meta: {
+          pagination: {
+            limit: 20,
+            offset: 0,
+            count: 0,
+            total: 0,
+            hasMore: false,
+          },
+        },
+      });
     });
   });
 

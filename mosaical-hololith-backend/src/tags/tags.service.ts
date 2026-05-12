@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, ProductStatus, StoreStatus } from '@prisma/client';
 import { PlansService } from '../plans/plans.service';
+import { buildListResponse } from '../shared/http/api-response';
 import { PrismaService } from '../shared/prisma/prisma.service';
 
 @Injectable()
@@ -75,10 +76,22 @@ export class TagsService {
   }
 
   // --- public ---
-  async publicListTags() {
-    return this.prisma.tag.findMany({
-      orderBy: [{ tier: 'asc' }, { name: 'asc' }],
-      select: { id: true, slug: true, name: true, tier: true, flags: true },
+  async publicListTags(params: { limit: number; offset: number }) {
+    const [items, total] = await Promise.all([
+      this.prisma.tag.findMany({
+        orderBy: [{ tier: 'asc' }, { name: 'asc' }],
+        select: { id: true, slug: true, name: true, tier: true, flags: true },
+        take: params.limit,
+        skip: params.offset,
+      }),
+      this.prisma.tag.count(),
+    ]);
+
+    return buildListResponse({
+      items,
+      limit: params.limit,
+      offset: params.offset,
+      total,
     });
   }
 

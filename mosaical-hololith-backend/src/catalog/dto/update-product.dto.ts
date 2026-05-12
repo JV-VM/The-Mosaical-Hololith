@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsInt,
   IsOptional,
   IsString,
@@ -35,4 +37,10 @@ export class UpdateProductDto {
 
   @IsOptional()
   media?: unknown;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(12)
+  mediaAssetIds?: string[];
 }

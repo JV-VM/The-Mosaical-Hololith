@@ -16,6 +16,7 @@ function createPrismaMock() {
     },
     membership: {
       findMany: jest.fn(),
+      count: jest.fn(),
     },
   };
 }
@@ -40,6 +41,7 @@ describe('TenantsService', () => {
     service = module.get<TenantsService>(TenantsService);
     prismaMock.tenant.create.mockReset();
     prismaMock.membership.findMany.mockReset();
+    prismaMock.membership.count.mockReset();
   });
 
   describe('createTenant', () => {
@@ -81,8 +83,9 @@ describe('TenantsService', () => {
   describe('listMyTenants', () => {
     it('queries memberships scoped by userId with stable select/orderBy', async () => {
       prismaMock.membership.findMany.mockResolvedValue([]);
+      prismaMock.membership.count.mockResolvedValue(0);
 
-      await service.listMyTenants('user-1');
+      await service.listMyTenants({ userId: 'user-1', limit: 20, offset: 0 });
 
       const firstCallUnknown: unknown =
         prismaMock.membership.findMany.mock.calls[0];
@@ -111,6 +114,9 @@ describe('TenantsService', () => {
           select: { id: true, name: true, ownerId: true },
         },
       });
+      expect(prismaMock.membership.count).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+      });
     });
 
     it('maps memberships into a stable response shape', async () => {
@@ -122,24 +128,45 @@ describe('TenantsService', () => {
         },
       ];
       prismaMock.membership.findMany.mockResolvedValue(memberships);
+      prismaMock.membership.count.mockResolvedValue(1);
 
-      const result = await service.listMyTenants('user-1');
+      const result = await service.listMyTenants({
+        userId: 'user-1',
+        limit: 20,
+        offset: 0,
+      });
 
-      expect(result).toEqual([
-        {
-          tenant: { id: 'tenant-1', name: 'Tenant', ownerId: 'user-1' },
-          role: MemberRole.TENANT_ADMIN,
-          membershipId: 'membership-1',
+      expect(result).toEqual({
+        data: [
+          {
+            tenant: { id: 'tenant-1', name: 'Tenant', ownerId: 'user-1' },
+            role: MemberRole.TENANT_ADMIN,
+            membershipId: 'membership-1',
+          },
+        ],
+        meta: {
+          pagination: {
+            limit: 20,
+            offset: 0,
+            count: 1,
+            total: 1,
+            hasMore: false,
+          },
         },
-      ]);
+      });
     });
 
     it('returns an empty array when the user has no memberships', async () => {
       prismaMock.membership.findMany.mockResolvedValue([]);
+      prismaMock.membership.count.mockResolvedValue(0);
 
-      const result = await service.listMyTenants('user-2');
+      const result = await service.listMyTenants({
+        userId: 'user-2',
+        limit: 20,
+        offset: 0,
+      });
 
-      expect(result).toEqual([]);
+      expect(result.data).toEqual([]);
     });
 
     it('preserves the input ordering from the data source', async () => {
@@ -156,10 +183,15 @@ describe('TenantsService', () => {
         },
       ];
       prismaMock.membership.findMany.mockResolvedValue(memberships);
+      prismaMock.membership.count.mockResolvedValue(2);
 
-      const result = await service.listMyTenants('user-1');
+      const result = await service.listMyTenants({
+        userId: 'user-1',
+        limit: 20,
+        offset: 0,
+      });
 
-      expect(result.map((x) => x.membershipId)).toEqual([
+      expect(result.data.map((x) => x.membershipId)).toEqual([
         'membership-2',
         'membership-1',
       ]);

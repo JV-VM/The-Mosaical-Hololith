@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { StoreStatus } from '@prisma/client';
 import { PlansService } from '../plans/plans.service';
+import { buildListResponse } from '../shared/http/api-response';
 import { PrismaService } from '../shared/prisma/prisma.service';
 
 const dashboardStoreSelect = {
@@ -92,11 +93,28 @@ export class StoresService {
     });
   }
 
-  async listStoresByTenant(tenantId: string) {
-    return this.prisma.store.findMany({
-      where: { tenantId },
-      orderBy: { createdAt: 'desc' },
-      select: dashboardStoreSelect,
+  async listStoresByTenant(params: {
+    tenantId: string;
+    limit: number;
+    offset: number;
+  }) {
+    const where = { tenantId: params.tenantId };
+    const [items, total] = await Promise.all([
+      this.prisma.store.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        select: dashboardStoreSelect,
+        take: params.limit,
+        skip: params.offset,
+      }),
+      this.prisma.store.count({ where }),
+    ]);
+
+    return buildListResponse({
+      items,
+      limit: params.limit,
+      offset: params.offset,
+      total,
     });
   }
 

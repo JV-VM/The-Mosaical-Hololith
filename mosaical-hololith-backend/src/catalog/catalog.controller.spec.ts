@@ -1,6 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantMemberGuard } from '../tenants/guards/tenant-member.guard';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -11,8 +9,6 @@ import type { CreateProductDto } from './dto/create-product.dto';
 describe('CatalogController', () => {
   let controller: CatalogController;
   let catalog: { createProduct: jest.Mock };
-
-  type RequestWithTenantId = Request & { tenantId?: string };
 
   beforeEach(async () => {
     catalog = {
@@ -47,9 +43,6 @@ describe('CatalogController', () => {
   });
 
   it('create forwards tenantId and media to the service', async () => {
-    const req: RequestWithTenantId = {
-      tenantId: 'tenant-1',
-    } as RequestWithTenantId;
     const dto: CreateProductDto = {
       storeId: 'store-1',
       title: 'Product',
@@ -61,7 +54,7 @@ describe('CatalogController', () => {
     };
     catalog.createProduct.mockResolvedValue({ id: 'product-1' });
 
-    await controller.create(req, dto);
+    await controller.create('tenant-1', dto);
 
     expect(catalog.createProduct).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
@@ -73,19 +66,5 @@ describe('CatalogController', () => {
       currency: 'USD',
       media: dto.media,
     });
-  });
-
-  it('create rejects requests without tenant context', () => {
-    const req: RequestWithTenantId = {} as RequestWithTenantId;
-    const dto: CreateProductDto = {
-      storeId: 'store-1',
-      title: 'Product',
-      slug: 'product',
-      priceCents: 1234,
-      currency: 'USD',
-    };
-
-    expect(() => controller.create(req, dto)).toThrow(ForbiddenException);
-    expect(catalog.createProduct).not.toHaveBeenCalled();
   });
 });

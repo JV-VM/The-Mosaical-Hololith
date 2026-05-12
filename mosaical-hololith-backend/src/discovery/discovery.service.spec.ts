@@ -8,9 +8,11 @@ function createPrismaMock() {
   return {
     store: {
       findMany: jest.fn(),
+      count: jest.fn(),
     },
     product: {
       findMany: jest.fn(),
+      count: jest.fn(),
     },
   };
 }
@@ -50,8 +52,12 @@ describe('DiscoveryService', () => {
     service = module.get<DiscoveryService>(DiscoveryService);
     prismaMock.store.findMany.mockReset();
     prismaMock.product.findMany.mockReset();
+    prismaMock.store.count.mockReset();
+    prismaMock.product.count.mockReset();
     prismaMock.store.findMany.mockResolvedValue([]);
     prismaMock.product.findMany.mockResolvedValue([]);
+    prismaMock.store.count.mockResolvedValue(0);
+    prismaMock.product.count.mockResolvedValue(0);
   });
 
   describe('explore', () => {
@@ -60,6 +66,7 @@ describe('DiscoveryService', () => {
 
       expect(prismaMock.store.findMany).toHaveBeenCalledTimes(1);
       expect(prismaMock.product.findMany).not.toHaveBeenCalled();
+      expect(prismaMock.store.count).toHaveBeenCalledTimes(1);
     });
 
     it('queries only products when type=product', async () => {
@@ -67,6 +74,7 @@ describe('DiscoveryService', () => {
 
       expect(prismaMock.product.findMany).toHaveBeenCalledTimes(1);
       expect(prismaMock.store.findMany).not.toHaveBeenCalled();
+      expect(prismaMock.product.count).toHaveBeenCalledTimes(1);
     });
 
     it('queries both stores and products when type=all', async () => {
@@ -74,6 +82,8 @@ describe('DiscoveryService', () => {
 
       expect(prismaMock.store.findMany).toHaveBeenCalledTimes(1);
       expect(prismaMock.product.findMany).toHaveBeenCalledTimes(1);
+      expect(prismaMock.store.count).toHaveBeenCalledTimes(1);
+      expect(prismaMock.product.count).toHaveBeenCalledTimes(1);
     });
 
     it('always enforces published-only filters in queries', async () => {
@@ -94,6 +104,38 @@ describe('DiscoveryService', () => {
         | Record<string, unknown>
         | undefined;
       expect(productStore?.status).toBe(StoreStatus.PUBLISHED);
+    });
+
+    it('returns discovery results in the shared data/meta envelope', async () => {
+      const result = await service.explore({
+        type: 'all',
+        limit: 5,
+        offset: 0,
+      });
+
+      expect(result).toEqual({
+        data: {
+          stores: [],
+          products: [],
+        },
+        meta: {
+          query: {
+            q: undefined,
+            tags: [],
+            type: 'all',
+            sort: 'new',
+            limit: 5,
+            offset: 0,
+          },
+          pagination: {
+            limit: 5,
+            offset: 0,
+            count: { stores: 0, products: 0 },
+            total: { stores: 0, products: 0 },
+            hasMore: { stores: false, products: false },
+          },
+        },
+      });
     });
   });
 });
