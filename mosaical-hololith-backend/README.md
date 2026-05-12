@@ -26,6 +26,39 @@ The backend **does not render UI**. It exposes a REST API consumed by:
 * The producer dashboard frontend
 * (Later) integrations and third-party services
 
+## Local e2e database
+
+End-to-end tests are wired to `.env.test`, not the default `.env`.
+
+The canonical Phase 0 workflow runs from the repository root:
+
+```bash
+corepack enable
+cp mosaical-hololith-backend/.env.example mosaical-hololith-backend/.env
+cp mosaical-hololith-backend/.env.test.example mosaical-hololith-backend/.env.test
+npm run bootstrap
+npm run verify
+npm run test:e2e:local
+```
+
+Backend-local equivalents still work if you are already inside `mosaical-hololith-backend/`.
+
+Use the local Postgres service in [docker-compose.e2e.yml](/home/vihkctormartim/The-Mosaical-Hololtih/mosaical-hololith-backend/docker-compose.e2e.yml):
+
+```bash
+npm run test:e2e:db:up
+npm run db:migrate:test
+npm run test:e2e
+```
+
+Or run the combined flow:
+
+```bash
+npm run test:e2e:local
+```
+
+The e2e bootstrap refuses to run against non-local or non-test database names to avoid destructive cleanup against shared environments.
+
 ---
 
 ## 2. Architectural principles

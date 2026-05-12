@@ -18,15 +18,18 @@ These are validated by `src/shared/env.ts` (plus `MIGRATE_URL` used by Prisma CL
 
 ## 2) Install dependencies
 
-Use your standard install step for this repo (example below):
+Phase 0 standardizes the root command surface. From the repository root:
 
 ```bash
-npm install
+corepack enable
+npm run bootstrap
 ```
+
+If you are operating inside `mosaical-hololith-backend/` directly, install with `corepack pnpm install --frozen-lockfile`.
 
 ## 3) Run database migrations (deploy)
 
-Use the migration scripts added to `package.json`:
+From the backend directory:
 
 ```bash
 npm run db:migrate:status
@@ -38,6 +41,8 @@ Notes:
 - `db:migrate:reset` is destructive and intended for development only.
 
 ## 4) Build and start
+
+From the backend directory:
 
 ```bash
 npm run build
@@ -76,8 +81,23 @@ Every response should include the `x-request-id` header.
 
 This repo includes a GitHub Actions workflow at `.github/workflows/ci.yml` that:
 
-- Boots a Postgres service
-- Runs `prisma migrate deploy`
-- Executes `npm run lint`, `npm test`, and `npm run test:e2e`
+- Installs backend dependencies through the root bootstrap command
+- Runs lint, typecheck, build, and unit tests
+- Boots the local e2e Postgres service from Docker Compose
+- Runs test migrations and executes the e2e suite
 
-To reproduce locally, start a Postgres instance and set `DATABASE_URL` / `MIGRATE_URL` before running the same commands.
+To reproduce locally, use the dedicated e2e database config in `.env.test`:
+
+```bash
+npm run test:e2e:db:up
+npm run db:migrate:test
+npm run test:e2e
+```
+
+Or run the combined helper:
+
+```bash
+npm run test:e2e:local
+```
+
+The e2e bootstrap refuses to run against non-local or non-test database names so test cleanup cannot hit shared environments by accident.

@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+
+previews:
+  generation: manual
+  expireAfterDays: 7
+
+envVarGroups:
+  - name: tmh-api-runtime
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '3000'
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: '900'
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: '2592000'
+
+services:
+  - type: web
+    name: tmh-api
+    runtime: docker
+    rootDir: mosaical-hololith-backend
+    dockerfilePath: ./mosaical-hololith-backend/Dockerfile
+    dockerContext: ./mosaical-hololith-backend
+    plan: starter
+    region: virginia
+    autoDeployTrigger: checksPass
+    healthCheckPath: /api/v1/health/live
+    envVars:
+      - fromGroup: tmh-api-runtime
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tmh-postgres
+          property: connectionString
+      - key: MIGRATE_URL
+        fromDatabase:
+          name: tmh-postgres
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+  - type: web
+    name: tmh-web
+    runtime: docker
+    rootDir: apps/web
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: ./apps/web
+    plan: starter
+    region: virginia
+    autoDeployTrigger: off
+    healthCheckPath: /
+    previews:
+      generation: manual
+      plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '3000'
+      - key: NEXT_PUBLIC_APP_NAME
+        value: The Mosaical Hololith
+      - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false
+
+databases:
+  - name: tmh-postgres
+    plan: basic-256mb
+    region: virginia
+    ipAllowList: []
+    databaseName: mosaical_hololith
+    user: mosaical_hololith
