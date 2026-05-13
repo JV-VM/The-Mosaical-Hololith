@@ -8,38 +8,7 @@ importers:
 
   .: {}
 
-  apps/web:
-    dependencies:
-      '@tmh/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
-      '@tmh/types':
-        specifier: workspace:*
-        version: link:../../packages/types
-      next:
-        specifier: ^15.0.0
-        version: 15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      react:
-        specifier: ^19.0.0
-        version: 19.2.6
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.6(react@19.2.6)
-    devDependencies:
-      '@types/node':
-        specifier: ^22.10.7
-        version: 22.19.19
-      '@types/react':
-        specifier: ^19.0.2
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.0.2
-        version: 19.2.3(@types/react@19.2.14)
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-
-  mosaical-hololith-backend:
+  apps/api:
     dependencies:
       '@fastify/cors':
         specifier: ^11.2.0
@@ -213,6 +182,37 @@ importers:
       typescript-eslint:
         specifier: ^8.20.0
         version: 8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
+
+  apps/web:
+    dependencies:
+      '@tmh/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@tmh/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      next:
+        specifier: ^15.0.0
+        version: 15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.6(react@19.2.6)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.7
+        version: 22.19.19
+      '@types/react':
+        specifier: ^19.0.2
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.2
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
 
   packages/api-client:
     dependencies:

@@ -25,7 +25,7 @@ corepack enable
 npm run bootstrap
 ```
 
-If you are operating inside `mosaical-hololith-backend/` directly, install with `corepack pnpm install --frozen-lockfile`.
+If you are operating inside `apps/api/` directly, install with `corepack pnpm install --frozen-lockfile`.
 
 ## 3) Run database migrations (deploy)
 

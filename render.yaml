@@ -20,9 +20,9 @@ services:
   - type: web
     name: tmh-api
     runtime: docker
-    rootDir: mosaical-hololith-backend
-    dockerfilePath: ./mosaical-hololith-backend/Dockerfile
-    dockerContext: ./mosaical-hololith-backend
+    rootDir: apps/api
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
     plan: starter
     region: virginia
     autoDeployTrigger: checksPass

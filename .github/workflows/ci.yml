@@ -20,7 +20,7 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
-          cache-dependency-path: 'mosaical-hololith-backend/pnpm-lock.yaml'
+          cache-dependency-path: 'apps/api/pnpm-lock.yaml'
 
       - name: Enable Corepack
         run: corepack enable
@@ -32,7 +32,7 @@ jobs:
         run: npm run verify
 
       - name: Start e2e database
-        run: docker compose -f mosaical-hololith-backend/docker-compose.e2e.yml up -d --wait postgres-e2e
+        run: docker compose -f apps/api/docker-compose.e2e.yml up -d --wait postgres-e2e
 
       - name: Run database migrations
         run: npm run db:migrate:test
@@ -42,4 +42,4 @@ jobs:
 
       - name: Shutdown e2e database
         if: always()
-        run: docker compose -f mosaical-hololith-backend/docker-compose.e2e.yml down -v
+        run: docker compose -f apps/api/docker-compose.e2e.yml down -v

@@ -81,6 +81,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await resetMediaDirectory();
+  await prisma.billingEvent.deleteMany();
   await prisma.analyticsEvent.deleteMany();
   await prisma.productTag.deleteMany();
   await prisma.storeTag.deleteMany();

@@ -174,15 +174,39 @@ model Plan {
 }
 
 model Subscription {
-  id        String             @id @default(cuid())
-  tenantId  String             @unique
-  planId    String
-  status    SubscriptionStatus @default(ACTIVE)
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  id                     String             @id @default(cuid())
+  tenantId               String             @unique
+  planId                 String
+  status                 SubscriptionStatus @default(ACTIVE)
+  provider               String             @default("internal")
+  providerCustomerId     String?
+  providerSubscriptionId String?            @unique
+  providerCheckoutSessionId String?         @unique
+  billingInterval        BillingInterval?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  canceledAt             DateTime?
+  pendingPlanCode        String?
+  lastProviderSyncAt     DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   plan   Plan   @relation(fields: [planId], references: [id])
+}
+
+model BillingEvent {
+  id              String    @id @default(cuid())
+  provider        String
+  providerEventId String
+  type            String
+  payload         Json?
+  processedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@unique([provider, providerEventId])
+  @@index([type, createdAt])
 }
 
 model AnalyticsEvent {
@@ -216,8 +240,16 @@ enum AnalyticsEventType {
 }
 
 enum SubscriptionStatus {
+  INCOMPLETE
   ACTIVE
+  PAST_DUE
+  CANCELING
   CANCELED
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
 }
 
 enum StoreStatus {

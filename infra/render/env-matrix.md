@@ -10,7 +10,7 @@ This document defines the intended Render service topology and environment-varia
 
 | Service | Render type | Runtime | Source path | Status |
 | --- | --- | --- | --- | --- |
-| `tmh-api` | `web` | `docker` | `mosaical-hololith-backend/` | deployable now |
+| `tmh-api` | `web` | `docker` | `apps/api/` | deployable now |
 | `tmh-postgres` | `database` | managed | Render-managed | deployable now |
 
 ### Planned services

@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The repository currently contains an active backend implementation in `mosaical-hololith-backend/`.
+The repository currently contains an active backend implementation in `apps/api/`.
 
 Phase 1 needs to establish the target monorepo shape:
 
@@ -15,7 +15,7 @@ Phase 1 needs to establish the target monorepo shape:
 - `packages/*`
 - `infra/*`
 
-However, the backend already has passing root verification and end-to-end tests. A large immediate filesystem move would introduce avoidable churn across:
+The backend originally lived outside `apps/`. The relocation was deferred until the frontend scaffold, Render blueprint, and root command surface were ready.
 
 - Docker paths
 - CI paths
@@ -25,15 +25,12 @@ However, the backend already has passing root verification and end-to-end tests.
 
 ## Decision
 
-During the start of Phase 1:
+During Phase 1:
 
-- `apps/api/` is introduced as the target location, not the immediate code location
-- the active backend remains in `mosaical-hololith-backend/`
-- Phase 1 artifacts must reference both the current location and the target location explicitly
-- the physical move to `apps/api/` should happen only as a dedicated cutover change after:
-  - the frontend scaffold exists
-  - the Render blueprint paths are updated in one pass
-  - CI remains green before and after the move
+- `apps/api/` is the active backend location
+- the backend remains a separately deployable NestJS API
+- root scripts, CI, Render, and Docker paths target `apps/api/`
+- historical docs may mention the deferred move, but new implementation work should use `apps/api/`
 
 ## Consequences
 
@@ -41,20 +38,15 @@ During the start of Phase 1:
 
 - preserves the working backend baseline
 - allows frontend and infra scaffolding to begin immediately
-- avoids mixing architectural decisions with a large path-move diff
-- makes the later move deliberate and easier to review
+- keeps the final monorepo shape consistent with `apps/web`, `apps/api`, `packages/*`, and `infra/*`
+- makes Docker and Render paths match the target architecture
 
 ### Negative
 
-- the repo temporarily contains both the current backend path and the target backend path concept
-- some docs must mention a transitional state
+- the path move creates a large file rename in Git history
+- old branch references may still point at the pre-cutover backend path
 
 ## Follow-up
 
-When the cutover happens:
-
-- move `mosaical-hololith-backend/` to `apps/api/`
-- update `render.yaml`
-- update root scripts and workspace config
-- update Docker and CI paths
-- remove transition language from the docs
+- keep future backend work inside `apps/api/`
+- remove remaining legacy path references when touched

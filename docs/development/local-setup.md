@@ -20,8 +20,8 @@ corepack enable
 ### 2. Create local env files
 
 ```bash
-cp mosaical-hololith-backend/.env.example mosaical-hololith-backend/.env
-cp mosaical-hololith-backend/.env.test.example mosaical-hololith-backend/.env.test
+cp apps/api/.env.example apps/api/.env
+cp apps/api/.env.test.example apps/api/.env.test
 ```
 
 Adjust secrets or database hosts only if your local setup differs from the defaults.
@@ -94,5 +94,24 @@ npm run build:web
 
 - The root `package.json` is the canonical command surface for Phase 0.
 - Backend-local commands still work, but root commands are the documented path.
-- Production builds now emit to `mosaical-hololith-backend/build/`, not `dist/`.
-- The checked-in backend path remains `mosaical-hololith-backend/` until Phase 1 decides the `apps/api/` migration cutover.
+- Production builds now emit to `apps/api/build/`, not `dist/`.
+- The checked-in backend path is `apps/api/`.
+
+## Docker API Runtime
+
+To run the API and Postgres locally in containers:
+
+```bash
+npm run docker:api:up
+```
+
+The API is exposed at:
+
+- `http://localhost:3000/api/v1/health/live`
+- `http://localhost:3000/docs`
+
+To stop the local Docker runtime and remove its volumes:
+
+```bash
+npm run docker:api:down
+```

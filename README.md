@@ -6,7 +6,7 @@ A federated e-commerce / SaaS platform built with
 ## Current State
 
 The repository currently contains a backend-first implementation centered on
-`mosaical-hololith-backend/`.
+`apps/api/`.
 
 The target state is a hybrid decoupled monorepo with:
 
@@ -41,11 +41,19 @@ Quick start:
 
 ```bash
 corepack enable
-cp mosaical-hololith-backend/.env.example mosaical-hololith-backend/.env
-cp mosaical-hololith-backend/.env.test.example mosaical-hololith-backend/.env.test
+cp apps/api/.env.example apps/api/.env
+cp apps/api/.env.test.example apps/api/.env.test
 npm run bootstrap
 npm run verify
 ```
+
+Docker API runtime:
+
+```bash
+npm run docker:api:up
+```
+
+The API will be available at `http://localhost:3000/api/v1`.
 
 ## Features
 

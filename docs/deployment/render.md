@@ -28,7 +28,7 @@ The supporting environment design lives at:
 - `tmh-api`
   Type: Render web service
   Runtime: Docker
-  Source path: `mosaical-hololith-backend/`
+  Source path: `apps/api/`
 - `tmh-web`
   Type: Render web service
   Runtime: Docker
@@ -52,8 +52,8 @@ The supporting environment design lives at:
 
 The API service is defined to:
 
-- build from `mosaical-hololith-backend/`
-- use the backend Dockerfile at [Dockerfile](/home/vihkctormartim/The-Mosaical-Hololtih/mosaical-hololith-backend/Dockerfile)
+- build from `apps/api/`
+- use the backend Dockerfile at [Dockerfile](/home/vihkctormartim/The-Mosaical-Hololtih/apps/api/Dockerfile)
 - expose the liveness endpoint `/api/v1/health/live`
 - receive secrets and database connection strings from Render-managed environment configuration
 
@@ -117,13 +117,13 @@ The current Blueprint does not yet run a dedicated pre-deploy migration command.
 
 That is intentional for this Phase 1 slice because:
 
-- the active backend still lives in `mosaical-hololith-backend/`
-- the deployment baseline is being established first
-- migration automation should be added in one deliberate step after the final service path and deploy flow are fixed
+- the active backend now lives in `apps/api/`
+- the deployment baseline is established before adding more automation
+- migration automation should be added in one deliberate step after the Render service is validated
 
 Until that automation lands, run migrations as part of the deployment checklist using:
 
-- [DEPLOYMENT.md](/home/vihkctormartim/The-Mosaical-Hololtih/mosaical-hololith-backend/docs/DEPLOYMENT.md)
+- [DEPLOYMENT.md](/home/vihkctormartim/The-Mosaical-Hololtih/apps/api/docs/DEPLOYMENT.md)
 
 ## Frontend deployment state
 
@@ -186,5 +186,5 @@ Not active in the current Blueprint yet:
 
 ### After backend relocation cutover
 
-- update `tmh-api` paths from `mosaical-hololith-backend/` to `apps/api/`
+- update `tmh-api` paths from `apps/api/` to `apps/api/`
 - update any Docker and script references accordingly

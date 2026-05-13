@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tmh-postgres-local
+    environment:
+      POSTGRES_DB: mosaical_hololith
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d mosaical_hololith']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - tmh_postgres_local:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: tmh-api-local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: '3000'
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/mosaical_hololith?schema=public
+      MIGRATE_URL: postgresql://postgres:postgres@postgres:5432/mosaical_hololith?schema=public
+      JWT_ACCESS_SECRET: local-access-secret-change-me
+      JWT_ACCESS_EXPIRES_IN: '900'
+      JWT_REFRESH_SECRET: local-refresh-secret-change-me
+      JWT_REFRESH_EXPIRES_IN: '2592000'
+      MEDIA_STORAGE_DRIVER: local
+      MEDIA_LOCAL_DIR: .tmp/media
+      MEDIA_MAX_UPLOAD_BYTES: '5242880'
+      BILLING_PROVIDER: stub
+      BILLING_LOCAL_PROVIDER: stub
+      BILLING_DEFAULT_PROVIDER: stub
+      BILLING_NATIONAL_PROVIDER: mercado_pago
+      BILLING_NATIONAL_COUNTRIES: BR
+      BILLING_NATIONAL_CURRENCIES: BRL
+      BILLING_INTERNATIONAL_PROVIDERS: stripe,payoneer
+      BILLING_APP_BASE_URL: http://localhost:3100
+      BILLING_WEBHOOK_SECRET: local-billing-webhook-secret
+      STRIPE_PRICE_MAP: '{}'
+      MERCADO_PAGO_PREAPPROVAL_PLAN_MAP: '{}'
+      CORS_ORIGIN: http://localhost:3000,http://localhost:3100
+    ports:
+      - '3000:3000'
+    command: sh -c "pnpm db:migrate:deploy && node build/src/main.js"
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "node -e \"fetch('http://127.0.0.1:3000/api/v1/health/live').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - tmh_api_media_local:/app/.tmp/media
+
+volumes:
+  tmh_postgres_local:
+  tmh_api_media_local:
